@@ -291,6 +291,8 @@ def main():
                         help="v2.7.1 · 启用 XueQiu Playwright 登录态抓取实盘比赛持仓（首次需 `python -m lib.xueqiu_browser login`）")
     parser.add_argument("--depth", choices=["lite", "medium", "deep"], default=None,
                         help="v2.10.2 · 思考深度 · lite(1-2min) / medium(5-8min · 默认) / deep(15-20min · 含 Bull-Bear 辩论 + Segmental)")
+    parser.add_argument("--school", choices=["A", "B", "C", "D", "E", "F", "G"], default=None,
+                        help="v3.5.0 · 锁定单一流派视角 · A价值/B成长/C宏观/D技术/E中国价投/F游资/G量化 · 其他派评委 skip · 报告顶部标注")
     parser.add_argument("--output-dir", metavar="DIR", default=None,
                         help="v2.11.0 · SaaS 集成：把产出（standalone html + 图 + 摘要）拷贝到该目录，并在其中生成 index.html / report.meta.json。建议配合 --no-browser 使用。")
     args = parser.parse_args()
@@ -322,6 +324,13 @@ def main():
     if args.enable_xueqiu_login:
         os.environ["UZI_XQ_LOGIN"] = "1"
         print("🔓 启用 XueQiu 登录态（19_contests 维度抓实盘组合）")
+
+    # v3.5.0 · 单一流派视角锁定 · 通过 env 传给 investor_evaluator
+    if args.school:
+        os.environ["UZI_SCHOOL"] = args.school
+        _SCHOOL_NAMES = {"A": "价值派", "B": "成长派", "C": "宏观派", "D": "技术派",
+                         "E": "中国价投", "F": "A 股游资", "G": "量化"}
+        print(f"🎯 已锁定 {args.school} 派视角 · {_SCHOOL_NAMES[args.school]} · 其他派评委 skip")
 
     env = detect_environment()
 

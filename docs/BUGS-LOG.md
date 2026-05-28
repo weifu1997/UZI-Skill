@@ -7,7 +7,36 @@
 
 ---
 
-## v3.5.0 (2026-05-13 · SaaS 集成：run.py 新增 --output-dir)
+## v3.5.0 (2026-05-29 · 单一流派视角锁定 `--school` + SaaS 集成 `--output-dir`)
+
+### FEATURE · `--school A/B/C/D/E/F/G` 单一流派视角锁定（社群反馈）
+
+- **背景**：用户反馈 "我只想看 F 派游资视角 · 不想 51 评委一起 vote"。51 评委 vote 出来的共识在某些场景下不是用户想要的视角（如纯游资打板 / 纯价值长线）
+- **位置**：
+  - `lib/investor_evaluator.py::evaluate` 入口段
+  - `lib/pipeline/score_fns.py::synthesize` return 段
+  - `lib/report/institutional.py::_render_school_lock_banner` 新函数
+  - `run.py::main` argparse 段
+  - `SKILL.md` HARD-GATE-SCHOOL-LOCK
+- **改动**：
+  1. `run.py` argparse 新增 `--school` choices=[A,B,C,D,E,F,G] · 触发后 set `os.environ["UZI_SCHOOL"]`
+  2. `investor_evaluator.get_locked_school()` 读 env + 大小写归一 + 合法性校验
+  3. `evaluate()` 顶部检查 · `inv_group != locked` → `_skip_result("用户锁定 X 派视角")` 不进规则引擎/persona
+  4. `score_fns.synthesize` 把 `school_lock={group, label}` 编码进 synthesis · 让报告层无需读 env
+  5. `_render_school_lock_banner(syn)` · 7 派各自配色 + 代表评委提示 · 渲染在 data_gap_banner 上方
+  6. `SKILL.md` 加 HARD-GATE · agent role-play 时只 role-play 该派 5-8 人 · `panel_insights` 不写跨派对比 · `great_divide_override.bull_say_rounds/bear_say_rounds` 限于该派内
+- **兼容 v3.4.5**：锁定 F 派 + 京东方 (2000 亿) · F 派 23 人按 LHB 反查机制 · 实际上榜的赵老哥/孙哥仍参与评分（不会因射程超限而二次 skip）
+- **未传 `--school` 时行为 100% 兼容**：`get_locked_school()` 返 "" · 全 51 评委正常 vote · banner 不渲染（_render_school_lock_banner 返 ""）
+- **验证**：
+  - `UZI_SCHOOL=F python3 -c "from lib.investor_evaluator import evaluate; print(evaluate('buffett', {...}))"` → signal=skip · reason 含"锁定 A 股游资 派视角"
+  - `_render_school_lock_banner({"school_lock":{"group":"F","label":"A 股游资"}})` → 包含 "SCHOOL LOCK" + "赵老哥" + 深红配色
+  - 11 个回归测试 (`test_v3_5_0_school_lock.py`) 全过
+- **未来改该区域注意事项**：
+  - `UZI_SCHOOL` env 大小写归一在 `get_locked_school()` 内完成 · 不要在其他位置再做 upper() 否则双重转换会失效
+  - 非 A-G 的 group 字符串（实验派 / 未分类）也会被 skip · 不要假设所有评委都有 group · 必要时检查 `_INVESTOR_GROUP_MAP.get(id, "")`
+  - `_render_school_lock_banner` 的 THEMES dict 必须包含所有 7 派 · 加新派时记得同步 SCHOOL_LABELS + THEMES + 测试
+  - synthesis.school_lock 是 dict 或 None · 不要写 ""（空字符串）· 测试 `if syn.get("school_lock")` 会过 None 但不会过 dict（即使 group=""）
+  - agent role-play 时 · 即使 panel.json 里非该派评委有 skip 状态 · 也不要 override 他们的 signal · 用户预期就是只看该派
 
 ### FEATURE · `--output-dir` CLI flag · 供 uzi-platform 集成
 - **背景**：把 UZI-Skill 包装成 SaaS（`uzi-platform/`），后端 Celery worker 需要稳定产物路径挂载到 web 报告页

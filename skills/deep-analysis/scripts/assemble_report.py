@@ -332,6 +332,7 @@ from lib.report.institutional import (  # noqa: E402, F401
     _render_initiating_coverage, _render_ic_memo, _render_catalyst_calendar,
     _render_competitive_analysis, _render_style_chip,
     _render_data_gap_banner, _render_institutional_section,
+    _render_school_lock_banner,
 )
 
 
@@ -565,9 +566,12 @@ def assemble(ticker: str) -> Path:
     # v2.3 · Data quality banner (only renders when synthesis.data_gaps present)
     # v3.4.4 · 传 raw 让 banner 检测 ETF/基金类型 · 优化文案避免误判可信度
     # v3.4.5 · 传 syn 让 banner 检测 low-confidence（fund_score 偏低 + 覆盖率低）
+    # v3.5.0 · 在 data_gap_banner 上方追加 school_lock_banner（用户锁定流派视角）
+    school_lock_html = _render_school_lock_banner(syn)
+    data_gap_html = _render_data_gap_banner(syn.get("data_gaps"), raw=raw, syn=syn)
     template = template.replace(
         "<!-- INJECT_DATA_GAP_BANNER -->",
-        _render_data_gap_banner(syn.get("data_gaps"), raw=raw, syn=syn),
+        school_lock_html + data_gap_html,
     )
 
     # v2.7 · Style chip (动态加权说明，只在 detected_style 存在时渲染)

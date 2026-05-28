@@ -1207,6 +1207,14 @@ def generate_synthesis(raw: dict, dims_scored: dict, panel: dict, agent_analysis
             if auto:
                 dim_commentary_final[dim_key] = auto
 
+    # v3.5.0 · 读 UZI_SCHOOL env · 把 lock 编码进 synthesis 让报告层渲染 banner
+    try:
+        from lib.investor_evaluator import get_locked_school, SCHOOL_LABELS
+        _locked = get_locked_school()
+        school_lock = {"group": _locked, "label": SCHOOL_LABELS.get(_locked, "")} if _locked else None
+    except Exception:
+        school_lock = None
+
     return {
         "ticker": raw["ticker"],
         "name": name,
@@ -1215,6 +1223,8 @@ def generate_synthesis(raw: dict, dims_scored: dict, panel: dict, agent_analysis
         "verdict_detail": verdict_detail,  # v3.4.1 · 基本面/共识精确分 · 区分相近 verdict 段的票
         "fundamental_score": round(fund_score, 1),
         "panel_consensus": round(consensus, 1),
+        # v3.5.0 · 用户锁定单一流派视角时 · 告诉报告层渲染 banner
+        "school_lock": school_lock,
         # v2.15.4 · 按流派分数也带到 synthesis · 让报告层无须回拉 panel.json
         "school_scores": panel.get("school_scores", {}),
         "dim_commentary": dim_commentary_final,  # agent-written > stub

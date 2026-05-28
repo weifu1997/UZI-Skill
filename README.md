@@ -12,7 +12,7 @@
 [![Methods](https://img.shields.io/badge/Institutional%20Methods-17-red)]()
 [![Self-Review](https://img.shields.io/badge/Self--Review-13%20checks-blueviolet)](skills/deep-analysis/scripts/lib/self_review.py)
 
-A 股 / 港股 / 美股 · 个股深度分析引擎 · **v3.4.5 F 派 LHB 反查 + low-confidence banner · v3.4.4 banner UX 优化 · v3.4.3 开放式基金分类修复 · v3.4.2 Windows Clash 兼容**
+A 股 / 港股 / 美股 · 个股深度分析引擎 · **v3.5.0 `--school` 单一流派视角锁定 + SaaS 集成 · v3.4.5 F 派 LHB 反查 + low-confidence banner · v3.4.4 banner UX 优化**
 
 [安装](#安装) · [用法](#用法) · [三档深度](#-三档思考深度v2103-新增) · [Hermes 🆕](INSTALL-HERMES.md) · [评审团](#-51-位评审团) · [机构方法](#-17-种机构级方法) · [自查 gate](#-机械级自查-gatev29-起) · [报告截图](#-报告长什么样) · [FAQ](#-faq) · [入群交流测试](#-测试交流群) · [Contributors](CONTRIBUTORS.md)
 
@@ -719,6 +719,7 @@ python run.py <ticker> --no-resume
 
 | 版本 | 日期 | 主要变化 |
 |---|---|---|
+| **v3.5.0** | 2026-05-29 | **单一流派视角锁定 (`--school A-G`) + SaaS 集成 (`--output-dir`)** · 社群反馈"我只想看 F 派游资视角 · 不想 51 评委一起 vote". (1) `run.py` 加 `--school A/B/C/D/E/F/G` · 价值/成长/宏观/技术/中国价投/游资/量化 七选一 · `investor_evaluator.evaluate` 入口检查 `UZI_SCHOOL` env · 非该派评委直接 `_skip_result(reason="用户锁定 X 派视角")` 不进规则引擎. (2) `synthesis.school_lock={group,label}` 编码进 syn · `_render_school_lock_banner` 7 派各自配色（A=深绿/F=深红/G=青）渲染在报告顶部 · 让分享者一眼看出本次仅看了该派 · 避免被误读为 51 评委结论. (3) `SKILL.md` 加 HARD-GATE · agent role-play 时严格只 role-play 该派 · `panel_insights` 不写跨派对比. (4) 同时合入早先准备的 `--output-dir DIR` SaaS 集成参数 · 把 `reports/{ticker}_{date}/` 拷到外部路径 + 写 `index.html` / `report.meta.json` 供 Celery worker 落库. 11 个新回归测试 · 总 445 passed |
 | **v3.4.5** | 2026-05-12 | **F 派游资 LHB 反查 + low-confidence banner** · 社群 codex agent 跑京东方 (000725) 实测发现两点：① F 派 23 人全 skip（市值 2000 亿超射程）· 但 LHB 实际有 3-5 个游资席位参与涨停博弈 · 评委逻辑与数据脱节. ② 规则引擎 fund_score 37.6 但 agent 重评 65/100 · 报告无任何"score 不可信"警告 · 用户误判. 修法：(1) `_is_youzi_out_of_range` 加 LHB 反查 · features.matched_youzi 含该游资昵称时强制不 skip. (2) `_render_data_gap_banner` 新增 syn 参数 · stock + fund_score<50 + cov<60% → 渲染 low-confidence 红色 banner · 文案明确引导看 agent 重评估. 10 个新回归测试 · 总 407 passed |
 | **v3.4.4** | 2026-05-12 | **data quality banner UX 优化** · 社群反馈两点：① ETF 报告 "覆盖率 17%" 让用户误判可信度（实际 ETF 本就无 ROE/PE 个股字段）· ② 橙色 banner 上橙色字（`#f59e0b/#fbbf24`）看不清. 修法：(1) banner 检测 ETF/LOF/mutual_fund · 切换 `fund-type` 蓝色调 banner · 文案明确"基金类型预期缺字段·不影响可信度"+ 引导看持仓股报告. (2) CSS 对比度大改 · title→#92400e 深棕 · subtitle strong→#7c2d12 + 加粗 800 · chip 文字→#7c2d12 · subtitle 正文→#1f2937 深灰. 11 个新 CSS + 行为回归测试 · 总 397 passed |
 | **v3.4.3** | 2026-05-12 | **开放式基金分类修复 + 字段级 fallback gate** · (1) [#60 复议](https://github.com/wbh604/UZI-Skill/issues/60) (@SchrodingerBarbatos) · 用户输 110011 易方达优质 → 被错判 convertible_bond early-exit. 修法：`classify_security_type` 在判 cb 前用 `akshare.fund_name_em` 二次校验 · 加 `mutual_fund` 类型 · run.py + preflight 路由到 fund_holdings_runner · 005xxx 等股票前缀外的基金也识别. (2) [PR #63](https://github.com/wbh604/UZI-Skill/pull/63) (@Wood Letitia · 313+137 行) · 字段级 fallback gate · 修 source-level 整块切换导致 name 永远缺的问题 · 主源拿到 price/PE/PB 但 name 空时 · 自动调 tencent_qt → baostock → ak_code_name 补全 · 仅填空不覆盖. 386 tests passed |

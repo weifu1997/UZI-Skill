@@ -1,30 +1,58 @@
 # Release Notes
 
-## v3.5.0 — 2026-05-13 (SaaS 集成：`run.py --output-dir`)
+## v3.5.0 — 2026-05-29 (单一流派视角锁定 + SaaS 集成)
 
-> **背景**：UZI-Skill 现在被包成 SaaS 平台（`uzi-platform/`，按次付费 + 公共研报池）。
-> Celery worker 需要一个稳定的产物路径，本次给 `run.py` 加了非侵入式 SaaS 集成参数。
+### ✨ 新增 1 · `--school` 单一流派视角锁定（社群反馈）
 
-### 新增 · `--output-dir DIR`
-- 跑完分析后，把整个 `reports/{ticker}_{date}/` 目录拷贝到 DIR
-- 在 DIR 内额外生成：
-  - `index.html` — `full-report-standalone.html` 的副本，平台直接挂 iframe
-  - `report.meta.json` — `{schema, ticker, depth, generated_at, one_liner, size_kb}` 供后端落库
-- **零回归**：未传该参数时行为 100% 兼容；--remote / --no-browser / 浏览器打开全部保留
-- **降级**：拷贝失败不阻断本地报告，仅打印 warning
+用户反馈："**我只想看 F 派游资视角分析 · 不想 51 评委一起 vote**"。
+v3.5.0 起 CLI 支持 `--school A/B/C/D/E/F/G` 锁定单一流派 · 其他派评委自动 skip · 报告顶部渲染 SCHOOL LOCK banner.
 
-### 用法
 ```bash
-# 单跑（行为不变）
-python run.py 600519.SH
-
-# SaaS 集成
-python run.py 600519.SH --depth medium --no-browser --output-dir /var/uzi/reports/<job_id>
-# → /var/uzi/reports/<job_id>/index.html
-# → /var/uzi/reports/<job_id>/report.meta.json
+python run.py 300394.SZ --school F --no-browser    # 仅游资视角
+python run.py 600519.SH --school A --depth deep    # 价值派的深度分析
 ```
 
-详见 `docs/BUGS-LOG.md::v3.5.0`。
+| 字母 | 流派 | 代表评委 |
+|---|---|---|
+| A | 价值派 | 巴菲特 / 格雷厄姆 / 费雪 / 段永平 / 木头姐 |
+| B | 成长派 | Bill Miller / Ron Baron / 段永平成长视角 |
+| C | 宏观派 | 索罗斯 / 达里奥 / Stanley Druckenmiller |
+| D | 技术派 | Mark Minervini / Stan Weinstein / Linda Raschke |
+| E | 中国价投 | 但斌 / 林园 / 李录 |
+| F | A 股游资 | 赵老哥 / 孙哥 / 章盟主 / 葛卫东 / 炒股养家 |
+| G | 量化 | Renaissance / DE Shaw / Two Sigma |
+
+**实现路径**：
+- `lib/investor_evaluator._is_youzi_out_of_range` 之后追加 school 锁定检查 · 非该派评委直接 `_skip_result` 不入规则引擎
+- `lib/pipeline/score_fns` synthesize 把 `school_lock={group, label}` 写进 synthesis.json
+- `lib/report/institutional._render_school_lock_banner` 7 派各自配色（A=深绿 / F=深红 / G=青）· 渲染在数据缺口 banner 上方
+- `SKILL.md` 加 HARD-GATE · agent role-play 时严格只 role-play 该派 · `panel_insights` 不写跨派对比
+
+**配套兼容**：
+- 锁定 F 派 + 京东方 (2000 亿大盘) → F 派 23 人按 v3.4.5 LHB 反查机制 · 实际上榜的赵老哥/孙哥仍参与评分
+- 未传 `--school` · 行为 100% 兼容 (51 评委正常 vote · banner 不渲染)
+- 7 派配色经 WCAG AA 验证
+
+### ✨ 新增 2 · `--output-dir` SaaS 集成
+
+> **背景**：UZI-Skill 被包成 SaaS 平台（`uzi-platform/` · 按次付费 + 公共研报池）。
+> Celery worker 需要稳定产物路径 · 本次给 `run.py` 加非侵入式集成参数。
+
+- 跑完分析后 · 把整个 `reports/{ticker}_{date}/` 目录拷贝到 DIR
+- 在 DIR 内额外生成：
+  - `index.html` — `full-report-standalone.html` 的副本 · 平台直接挂 iframe
+  - `report.meta.json` — `{schema, ticker, depth, generated_at, one_liner, size_kb}` 供后端落库
+- **零回归**：未传该参数时行为 100% 兼容；`--remote` / `--no-browser` / 浏览器打开全部保留
+- **降级**：拷贝失败不阻断本地报告 · 仅打印 warning
+
+```bash
+python run.py 600519.SH                                              # 单跑（行为不变）
+python run.py 600519.SH --no-browser --output-dir /var/uzi/<job_id>  # SaaS 集成
+```
+
+### 🧪 测试
+
+- 新增 11 个 v3.5.0 回归测试（`test_v3_5_0_school_lock.py`）· **445/445 全过**
 
 ---
 

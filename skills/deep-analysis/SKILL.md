@@ -120,6 +120,31 @@ Payload 示例（agent 看到这个就知道该走 ETF 引导流程）:
 ```
 </HARD-GATE>
 
+### ⛔ HARD-GATE-SCHOOL-LOCK · 用户锁定单一流派视角（v3.5.0）
+
+<HARD-GATE>
+当用户用 `python run.py <ticker> --school F`（或 A/B/C/D/E/F/G 之一）锁定流派视角时 ·
+环境变量 `UZI_SCHOOL` 会被设置 · synthesis.json 里 `school_lock` 字段也会标注。
+
+**进入 stage1 后的 role-play 阶段 · 你必须**：
+
+1. **读 `panel.json` 里 group == UZI_SCHOOL 的评委**（通常 5-8 人）· 只 role-play 这些人
+2. 其他派评委已被规则引擎标 `signal=skip` · reason="用户锁定 X 派视角" · 你**不要再给他们写评语 / 翻盘**
+3. `agent_analysis.json` 必须自我约束：
+   - `panel_insights` 仅讨论该派内部分歧 · 不要写"巴菲特说 X · 赵老哥说 Y"这种跨派对比
+   - `great_divide_override.bull_say_rounds / bear_say_rounds` 必须都来自该派评委
+   - 若该派 5-8 人全看多 · 多空辩论也得**派内分歧版本**（如游资里"打板派 vs 卡位派"）
+4. **报告顶部已渲染 SCHOOL LOCK banner** · 用户/分享者一眼能看出本次仅看了该派 · 避免被误读为全 51 评委结论
+
+**绝不能**：
+- ❌ 不顾 `UZI_SCHOOL` 把 51 人都 role-play 一遍（其他派 skip 状态会被你的 override 覆盖 · 误导用户）
+- ❌ 在 `panel_insights` 里写"价值派看空但游资看多"这种跨派叙事（用户已选了一派 · 不需要外部对比）
+
+何时 skip 本 HARD-GATE：
+- `UZI_SCHOOL` 未设置（默认 · 全 51 评委正常 role-play）
+- `synthesis.json["school_lock"] is None`
+</HARD-GATE>
+
 ### ⛔ HARD-GATE-PERSONA-ROLEPLAY · 51 评委 role-play 必须读 YAML persona（v2.15）
 
 <HARD-GATE>

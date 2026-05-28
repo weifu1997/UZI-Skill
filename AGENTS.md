@@ -104,7 +104,13 @@ UZI-Skill/                                  # ← 你 cwd 应该是这里
 ```bash
 python3 run.py <ticker> --depth lite --no-browser    # 最快
 python3 run.py <ticker> --depth medium --no-browser  # 默认完整度
+python3 run.py <ticker> --school F --no-browser      # v3.5.0 · 只看 F 派（游资）视角
+python3 run.py <ticker> --school A --depth deep      # 价值派视角的深度分析
 ```
+
+**v3.5.0 `--school` 参数**：用户可锁定单一流派 (A价值/B成长/C宏观/D技术/E中国价投/F游资/G量化)，
+其他派评委自动 skip · 报告顶部渲染 SCHOOL LOCK banner · 你 role-play 时**只 role-play 该派 5-8 人** ·
+panel_insights / debate_rounds 都限于该派内部分歧。详见 SKILL.md `HARD-GATE-SCHOOL-LOCK`。
 
 脚本会：
 1. 跑 stage1 采集数据

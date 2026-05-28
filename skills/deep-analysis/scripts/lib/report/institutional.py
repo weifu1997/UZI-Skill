@@ -578,6 +578,51 @@ def _render_data_gap_banner(data_gaps: dict | None, raw: dict | None = None, syn
 </div>'''
 
 
+def _render_school_lock_banner(syn: dict | None) -> str:
+    """v3.5.0 · 用户用 --school 锁定单一流派视角时 · 报告顶部渲染 banner.
+
+    数据源 · syn["school_lock"] = {"group": "F", "label": "A 股游资"}
+    返 "" 表示无锁定 · 不渲染.
+    """
+    if not isinstance(syn, dict):
+        return ""
+    lock = syn.get("school_lock")
+    if not isinstance(lock, dict) or not lock.get("group"):
+        return ""
+    group = lock["group"]
+    label = lock.get("label") or group
+
+    # 不同流派配色 · 让 banner 立刻识别（与 school_scores 区域呼应）
+    THEMES = {
+        "A": ("#065f46", "rgba(16,185,129,0.10)", "🛡️", "巴菲特 / 格雷厄姆 / 费雪 / 段永平 / 木头姐"),
+        "B": ("#1e40af", "rgba(59,130,246,0.10)", "🚀", "Bill Miller / Ron Baron / 段永平 成长视角"),
+        "C": ("#7c2d12", "rgba(217,119,6,0.10)", "🌍", "索罗斯 / 达里奥 / Stanley Druckenmiller"),
+        "D": ("#9d174d", "rgba(236,72,153,0.10)", "📈", "Mark Minervini / Stan Weinstein / Linda Raschke"),
+        "E": ("#7c3aed", "rgba(139,92,246,0.10)", "🇨🇳", "但斌 / 林园 / 李录 中国价投"),
+        "F": ("#dc2626", "rgba(239,68,68,0.10)", "⚡", "赵老哥 / 孙哥 / 章盟主 / 葛卫东 / 炒股养家"),
+        "G": ("#0891b2", "rgba(8,145,178,0.10)", "🤖", "Renaissance / DE Shaw / Two Sigma 量化"),
+    }
+    fg, bg, icon, members_hint = THEMES.get(group, ("#374151", "rgba(107,114,128,0.10)", "🎯", ""))
+
+    return (
+        f'<div class="school-lock-banner" style="margin:16px 0;padding:14px 20px;'
+        f'background:{bg};border-left:5px solid {fg};border-radius:8px;'
+        f'display:flex;align-items:center;gap:14px;font-size:13px;line-height:1.5">'
+        f'  <div style="font-size:22px">{icon}</div>'
+        f'  <div style="flex:1">'
+        f'    <div style="font-size:11px;letter-spacing:2px;color:{fg};font-weight:700;margin-bottom:3px">'
+        f'      SCHOOL LOCK · 已锁定单一流派视角'
+        f'    </div>'
+        f'    <div style="color:#1f2937">'
+        f'      本次分析仅由 <strong style="color:{fg}">{group} · {label}</strong> 的评委参与评分 · '
+        f'其他 6 个流派的评委已 skip · 报告里"评委打分板 / 流派分数 / 多空辩论"均限于该派内.'
+        f'    </div>'
+        f'    {f"<div style=\"margin-top:4px;color:#6b7280;font-size:11px\">代表评委 · {members_hint}</div>" if members_hint else ""}'
+        f'  </div>'
+        f'</div>'
+    )
+
+
 def _render_institutional_section(raw: dict) -> str:
     """Combined dim 20/21/22 renderer — returns the full institutional modeling block."""
     dims = raw.get("dimensions", {}) or {}
