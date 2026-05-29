@@ -1,5 +1,68 @@
 # Release Notes
 
+## v3.6.0 — 2026-05-29 (视觉/交互大升级 + 多股横向对比 + 组合分析)
+
+> **背景**：用户希望"报告更好玩 + 多股能横向对比 + 组合能批量看"。
+> v3.6.0 拼三个大模块发布：Phase A 视觉/交互、Phase B `--versus` 多股对比、Phase C `--portfolio` 组合分析。
+> Phase D（`--sector` 板块扫 + `--as-of` 历史复盘）需要 fetcher 改造为 date-aware，留到 v3.7。
+
+### ✨ Phase A · 视觉/交互升级（5 项）
+
+1. **暗色模式 toggle** — 右上角 🌙 按钮 · 全套 dark theme CSS 变量 · `localStorage` 持久化 + `prefers-color-scheme` 自动初始化
+2. **左侧 sticky TOC + scroll spy** — 8 个章节锚点 + IntersectionObserver 高亮当前位置 + 平滑滚动 · 1280px 以下自动隐藏
+3. **关键数字 count-up 动画** — 大评分进入视口时 ease-out 从 0 弹到目标值 · 提升"哇"感
+4. **金融术语悬浮解释** — PE / PB / ROE / DCF / IRR / WACC / EV-EBITDA / LBO / YTD / TTM / PEG / LHB 自动包 `.jargon` + 悬浮 tooltip · 新手友好
+5. **报告底部分享 QR 码** — 用 `location.href` 生成二维码（仅 http/https 协议有效）· 扫码直达完整报告
+6. **🔒 安全加固** — tooltipify / drawQR 全部用 `createElement + textContent` 安全 DOM 构造 · 不使用 `innerHTML`（XSS 防御）
+
+### ✨ Phase B · 多股横向对比 (`--versus`)
+
+```bash
+python run.py --versus 600519.SH 000858.SZ                  # 茅台 vs 五粮液
+python run.py --versus 茅台 五粮液 002594.SZ --depth lite    # 三只票快速对比
+```
+
+- 接受 2-4 只票 · 中文名 / 代码混用 OK
+- 循环跑每只票（`resume=True` 复用 cache）· 不重复算
+- 输出 `reports/versus_{ticker1}_vs_{ticker2}_{date}/index.html`
+- 表格 12 个核心指标 · ★ WIN 高亮谁更优（PE 低胜 / ROE 高胜 / 总评高胜...）
+- 每只票 verdict 卡片 · count-up 动画 · 复用主模板 CSS + dark mode
+- `lib/versus_runner.py` (380 行)
+
+### ✨ Phase C · 自定义组合分析 (`--portfolio`)
+
+```bash
+# holdings.csv
+ticker,weight,note
+600519.SH,0.30,白酒龙头
+000858.SZ,0.15,白酒第二
+002594.SZ,0.25,电动车
+贵州茅台,0.30        # 也支持中文名
+
+python run.py --portfolio holdings.csv
+```
+
+- CSV parser 容错：header / 无 header / 中英文列名 / 0-1 vs 0-100 权重
+- 权重归一化：缺失 → 平均 · 部分缺 → 剩余均分 · 全有 → 自动归一
+- **加权评分**：`Σ(总评 × 权重)`
+- **健康度**：基于 加权分 + 最大单只仓位 + 行业分散度 给🟢/🟡/🔴
+- 输出排名表 + KPI 网格 + `metadata.json`（供 SaaS / 追踪用）
+- `lib/portfolio_runner.py` (370 行)
+
+### 🧪 测试
+
+- **新增 39 个 v3.6.0 回归测试**
+  - Phase A 视觉/安全 14 个
+  - Phase B 多股对比 12 个
+  - Phase C 组合分析 13 个
+- **484/484 全过**（445 baseline + 39 new）
+
+### 📋 Phase D 暂缓（v3.7 范围）
+
+`--sector 板块代码` 板块全扫 + `--as-of 2024-Q3` 历史数据复盘 需要 fetcher 改造支持 date-aware 拉取 · 工作量大 · 移到下一个版本。
+
+---
+
 ## v3.5.0 — 2026-05-29 (单一流派视角锁定 + SaaS 集成)
 
 ### ✨ 新增 1 · `--school` 单一流派视角锁定（社群反馈）

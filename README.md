@@ -12,7 +12,7 @@
 [![Methods](https://img.shields.io/badge/Institutional%20Methods-17-red)]()
 [![Self-Review](https://img.shields.io/badge/Self--Review-13%20checks-blueviolet)](skills/deep-analysis/scripts/lib/self_review.py)
 
-A 股 / 港股 / 美股 · 个股深度分析引擎 · **v3.5.0 `--school` 单一流派视角锁定 + SaaS 集成 · v3.4.5 F 派 LHB 反查 + low-confidence banner · v3.4.4 banner UX 优化**
+A 股 / 港股 / 美股 · 个股深度分析引擎 · **v3.6.0 视觉升级（暗色模式 + sticky TOC + 名词悬浮）+ `--versus` 多股对比 + `--portfolio` 组合分析 · v3.5.0 `--school` 单一流派视角 · v3.4.5 F 派 LHB 反查**
 
 [安装](#安装) · [用法](#用法) · [三档深度](#-三档思考深度v2103-新增) · [Hermes 🆕](INSTALL-HERMES.md) · [评审团](#-51-位评审团) · [机构方法](#-17-种机构级方法) · [自查 gate](#-机械级自查-gatev29-起) · [报告截图](#-报告长什么样) · [FAQ](#-faq) · [入群交流测试](#-测试交流群) · [Contributors](CONTRIBUTORS.md)
 
@@ -719,6 +719,7 @@ python run.py <ticker> --no-resume
 
 | 版本 | 日期 | 主要变化 |
 |---|---|---|
+| **v3.6.0** | 2026-05-29 | **视觉/交互大升级 + 多股横向对比 + 组合分析** · 三 Phase 拼合发布. **Phase A 视觉**：(1) 暗色模式 toggle（右上角 🌙 · `localStorage` 持久化 + `prefers-color-scheme` 自动初始化）· (2) 左侧 sticky TOC + IntersectionObserver scroll-spy · (3) 大评分 count-up 动画 · (4) PE/PB/ROE/DCF/IRR/WACC/EV-EBITDA/LBO/YTD/TTM/PEG/LHB 自动包 `.jargon` + 悬浮 tooltip · (5) 报告底部 QR 码（扫码直达完整报告）· 🔒 全部用 `createElement + textContent` 安全 DOM · 不用 innerHTML (XSS 防御). **Phase B `--versus`**：2-4 只票横向对比 · `lib/versus_runner.py` (380 行)· ★ WIN 高亮 12 个核心指标 · 单 HTML 自包含 · 复用 cache. **Phase C `--portfolio`**：用户上传 CSV (ticker/weight/note) · 容错解析（header/无 header/中英文列名/0-1 vs 0-100 权重）· 权重自动归一 · 输出排名 + KPI（加权评分 + 集中度 + 行业分散）+ metadata.json · `lib/portfolio_runner.py` (370 行). Phase D（`--sector` / `--as-of`）需 fetcher date-aware · 留到 v3.7. 39 个新回归测试 · 总 484 passed |
 | **v3.5.0** | 2026-05-29 | **单一流派视角锁定 (`--school A-G`) + SaaS 集成 (`--output-dir`)** · 社群反馈"我只想看 F 派游资视角 · 不想 51 评委一起 vote". (1) `run.py` 加 `--school A/B/C/D/E/F/G` · 价值/成长/宏观/技术/中国价投/游资/量化 七选一 · `investor_evaluator.evaluate` 入口检查 `UZI_SCHOOL` env · 非该派评委直接 `_skip_result(reason="用户锁定 X 派视角")` 不进规则引擎. (2) `synthesis.school_lock={group,label}` 编码进 syn · `_render_school_lock_banner` 7 派各自配色（A=深绿/F=深红/G=青）渲染在报告顶部 · 让分享者一眼看出本次仅看了该派 · 避免被误读为 51 评委结论. (3) `SKILL.md` 加 HARD-GATE · agent role-play 时严格只 role-play 该派 · `panel_insights` 不写跨派对比. (4) 同时合入早先准备的 `--output-dir DIR` SaaS 集成参数 · 把 `reports/{ticker}_{date}/` 拷到外部路径 + 写 `index.html` / `report.meta.json` 供 Celery worker 落库. 11 个新回归测试 · 总 445 passed |
 | **v3.4.5** | 2026-05-12 | **F 派游资 LHB 反查 + low-confidence banner** · 社群 codex agent 跑京东方 (000725) 实测发现两点：① F 派 23 人全 skip（市值 2000 亿超射程）· 但 LHB 实际有 3-5 个游资席位参与涨停博弈 · 评委逻辑与数据脱节. ② 规则引擎 fund_score 37.6 但 agent 重评 65/100 · 报告无任何"score 不可信"警告 · 用户误判. 修法：(1) `_is_youzi_out_of_range` 加 LHB 反查 · features.matched_youzi 含该游资昵称时强制不 skip. (2) `_render_data_gap_banner` 新增 syn 参数 · stock + fund_score<50 + cov<60% → 渲染 low-confidence 红色 banner · 文案明确引导看 agent 重评估. 10 个新回归测试 · 总 407 passed |
 | **v3.4.4** | 2026-05-12 | **data quality banner UX 优化** · 社群反馈两点：① ETF 报告 "覆盖率 17%" 让用户误判可信度（实际 ETF 本就无 ROE/PE 个股字段）· ② 橙色 banner 上橙色字（`#f59e0b/#fbbf24`）看不清. 修法：(1) banner 检测 ETF/LOF/mutual_fund · 切换 `fund-type` 蓝色调 banner · 文案明确"基金类型预期缺字段·不影响可信度"+ 引导看持仓股报告. (2) CSS 对比度大改 · title→#92400e 深棕 · subtitle strong→#7c2d12 + 加粗 800 · chip 文字→#7c2d12 · subtitle 正文→#1f2937 深灰. 11 个新 CSS + 行为回归测试 · 总 397 passed |

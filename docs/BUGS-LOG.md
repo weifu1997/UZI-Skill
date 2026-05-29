@@ -7,6 +7,108 @@
 
 ---
 
+## v3.6.0 (2026-05-29 · 视觉升级 + 多股对比 + 组合分析)
+
+### FEATURE A1 · 暗色模式 toggle
+
+- **位置**：`assets/report-template.html`（CSS `:root` + `[data-theme="dark"]` 块 · 末尾 `<script>` toggle 段）
+- **改动**：
+  1. 新增 `[data-theme="dark"]` 块 · 30+ 个 CSS 变量重定义（slate-900 风 + 提亮 neon）
+  2. topbar 加 `<button id="theme-toggle">` · 默认 🌙 / 切换后 ☀️
+  3. JS 初始化优先级：`localStorage.getItem('uzi-theme')` > `prefers-color-scheme: dark` > light
+  4. 持久化：每次 toggle 都写 `localStorage` · 跨刷新生效
+- **未来改该区域注意事项**：
+  - 加新 CSS 变量时 · 必须同时在 `:root` 和 `[data-theme="dark"]` 都定义 · 否则暗色模式回退到 light 默认值
+  - 不要硬编码 `#000000 / #ffffff` · 必须用 `var(--text-bright)` 等抽象
+
+### FEATURE A2-3 · sticky TOC + count-up
+
+- **位置**：`assets/report-template.html`（CSS `.toc-rail`/`.toc-item` · HTML `<nav class="toc-rail">` · 8 个 `id="section-X"` 锚点 · JS 末尾段）
+- **改动**：
+  1. 给 8 个 section-head div 加 `id="section-{core/clash/jury/chat/scan/modeling/risks/zones}"`
+  2. 左侧 `.toc-rail` fixed 50% · `@media (max-width:1280px)` 隐藏
+  3. JS 用 IntersectionObserver `rootMargin: '-30% 0px -50% 0px'` 命中段加 `.active` class
+  4. count-up：找 `.score-giant, .sc-score-giant, .hero-score-num, .confidence` · 进入视口动画
+- **未来改该区域注意事项**：
+  - 增减章节时必须同步：HTML section id + TOC `<a href="#X">` + 顺序 · 不一致会出现 active 跳到错位置
+  - count-up selector 用类名匹配 · 改样式时不要把 `.score-giant` 重命名 · 否则动画失效
+
+### FEATURE A4 · 金融术语悬浮 tooltip · 🔒 XSS 安全加固
+
+- **位置**：`assets/report-template.html`（JS 末尾 `TERMS` dict + `tooltipify` 函数）
+- **改动**：
+  1. `TERMS` dict 含 12 个核心术语（PE/PB/ROE/DCF/IRR/WACC/EV-EBITDA/LBO/YTD/TTM/PEG/LHB）
+  2. 扫描 `.panel-insights / .dim-card .body / .friendly-layer / .risk-box / .punchline / .dim-row / .school-scores .desc / .round-bull / .round-bear / .qr-desc` 内 text node
+  3. 用 `createDocumentFragment + createElement('span') + textContent + setAttribute('data-tip', ...)` 安全构造 · 不用 `innerHTML`
+  4. 词条按长度降序匹配 · `\\b` 边界 + RegExp 防止 PE 误匹配 PEG
+- **安全要点**：
+  - **永远不要用 `node.innerHTML = ...` 处理动态术语 / 用户数据**（XSS 风险）
+  - `textContent` 自动转义 · `setAttribute` 也安全 · 是首选
+  - 测试 `test_tooltipify_uses_safe_dom_no_innerhtml` 守护这一点
+- **未来改该区域注意事项**：
+  - 加新术语只需扩 `TERMS` dict
+  - 不要为了"省事"用 innerHTML 拼接 — 这是 security hook 检查项
+  - 长术语在前（`EV/EBITDA` 在 `PE` 前）· 防止短词先匹配吞掉长词
+
+### FEATURE A5 · 报告 QR 码
+
+- **位置**：`assets/report-template.html`（CSS `.share-qr-card` · HTML 在 buy-zones 之后 share button 之前 · JS `drawQR` 函数）
+- **改动**：
+  1. `<canvas id="report-qr-canvas">` 200×200 · 用 Google Chart API (`api.qrserver.com`) 远程生成
+  2. file:// 协议下不调 API · 用 `canvas.getContext('2d').fillText` 提示用 `--remote`
+  3. 网络失败 fallback · 显示 "QR offline"
+- **未来改该区域注意事项**：
+  - QR 服务商可换 · 但接口签名 `data=<url>` 通用 · 不要硬编码尺寸到 URL
+  - 不要 innerHTML 注入 URL · 用 canvas 2D 绘图安全
+
+### FEATURE B · 多股横向对比 `--versus`
+
+- **位置**：`lib/versus_runner.py` (新文件 380 行) · `run.py` argparse + 早返回段
+- **核心函数**：
+  - `_load_cache(ticker)` → bundle{syn, raw, panel}
+  - `_extract_metrics(bundle)` → 12 个核心字段 dict
+  - `_winner(values, higher_is_better)` → winner index · 全空返 -1 · 跳过 0
+  - `_render_comparison_grid(stocks)` → table HTML · ★ WIN 标注
+  - `_render_html(stocks, depth)` → 完整 HTML（复用主模板 CSS）
+  - `run_versus(tickers, depth, auto_open)` → dispatch
+- **不破坏现有行为**：
+  - `--versus` 早返回 · 不影响单股分析路径
+  - 输入校验 2-4 只 · 其他长度 invalid_input
+- **未来改该区域注意事项**：
+  - 改 `ROWS` 加新对比维度时 · winner 高低需明确（`higher_is_better` 字段）· None=不比
+  - 模板 CSS 路径用 `ASSETS_DIR` 常量 · `.parents[1]` 推算 scripts dir · 不要硬编码
+  - `_render_html` 复用主模板 `<style>` 块 · 主模板改 CSS 时这里自动跟随
+  - dark-toggle JS 简化版 (无 TOC/jargon) · 未来如需统一 · 抽 `assets/shared-theme.js`
+
+### FEATURE C · 组合批量分析 `--portfolio CSV`
+
+- **位置**：`lib/portfolio_runner.py` (新文件 370 行) · `run.py` argparse + 早返回段
+- **核心函数**：
+  - `_parse_csv(path)` → list[{ticker, weight, note}] · 容错 header / 中英文 / 0-100
+  - `_normalize_weights(holdings)` → 归一化到 sum=1.0 · 缺失均分 / 部分缺剩余均分 / 总和 > 1 重归一
+  - `_portfolio_health(metrics)` → {weighted_score, max_weight, n_industries, verdict}
+  - `_render_html` → 排名表 + KPI grid + metadata.json
+  - `run_portfolio(csv, depth, auto_open, portfolio_name)` → dispatch
+- **CSV 容错**：
+  - header 兼容：ticker / code / symbol / 股票 / 代码 · weight / 权重 / 仓位 / pct / 比例
+  - weight 0-1 视为比例 · >1 自动除以 100
+  - 无 header 时假设单列 ticker · weight 平均
+- **未来改该区域注意事项**：
+  - CSV header 加新别名时 · 必须加到 `tk_keys / wt_keys / note_keys` 列表
+  - 健康度门槛是 hardcode（weighted_score>=70, max_weight<0.40, n_industries>=3）· 改阈值要同时改测试
+  - metadata.json schema 是 SaaS 契约 · 加字段 OK · 改既有字段必须升 schema 版本
+  - 失败容忍：单只 fail 进 `failed[]` 不阻断 · 但全失败返 insufficient_data
+
+### Phase D 暂缓说明（v3.7 范围）
+
+`--sector LED` 板块全扫 + `--as-of 2024-Q3` 历史复盘 都需要：
+- fetcher 接受 `as_of_date` 参数 · 走历史接口（baostock query_history_k_data_plus 已支持但 akshare 大多不支持）
+- 板块扫需 industry → tickers 映射表 · 跨数据源对齐
+
+工作量大 + 涉及数据层重构 · 留到 v3.7 单独迭代。
+
+---
+
 ## v3.5.0 (2026-05-29 · 单一流派视角锁定 `--school` + SaaS 集成 `--output-dir`)
 
 ### FEATURE · `--school A/B/C/D/E/F/G` 单一流派视角锁定（社群反馈）

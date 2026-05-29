@@ -293,6 +293,12 @@ def main():
                         help="v2.10.2 · 思考深度 · lite(1-2min) / medium(5-8min · 默认) / deep(15-20min · 含 Bull-Bear 辩论 + Segmental)")
     parser.add_argument("--school", choices=["A", "B", "C", "D", "E", "F", "G"], default=None,
                         help="v3.5.0 · 锁定单一流派视角 · A价值/B成长/C宏观/D技术/E中国价投/F游资/G量化 · 其他派评委 skip · 报告顶部标注")
+    parser.add_argument("--versus", nargs="+", metavar="TICKER",
+                        help="v3.6.0 · 多股横向对比模式 · 接受 2-4 个代码 / 中文名 · 输出单 HTML "
+                             "(如 --versus 600519.SH 000858.SZ · 自动 resume 复用 cache)")
+    parser.add_argument("--portfolio", metavar="CSV", default=None,
+                        help="v3.6.0 · 组合批量分析 · CSV 列含 ticker / weight / note · "
+                             "输出排名 + 加权评分 + 健康度 · 自动 resume")
     parser.add_argument("--output-dir", metavar="DIR", default=None,
                         help="v2.11.0 · SaaS 集成：把产出（standalone html + 图 + 摘要）拷贝到该目录，并在其中生成 index.html / report.meta.json。建议配合 --no-browser 使用。")
     args = parser.parse_args()
@@ -331,6 +337,39 @@ def main():
         _SCHOOL_NAMES = {"A": "价值派", "B": "成长派", "C": "宏观派", "D": "技术派",
                          "E": "中国价投", "F": "A 股游资", "G": "量化"}
         print(f"🎯 已锁定 {args.school} 派视角 · {_SCHOOL_NAMES[args.school]} · 其他派评委 skip")
+
+    # v3.6.0 · 横向对比模式 · 早返回 · 不走单股分析
+    if args.versus:
+        if not (2 <= len(args.versus) <= 4):
+            print(f"❌ --versus 接受 2-4 个 ticker · 实际 {len(args.versus)}")
+            sys.exit(2)
+        from lib.versus_runner import run_versus
+        result = run_versus(
+            args.versus,
+            depth=args.depth or "lite",
+            auto_open=not args.no_browser,
+        )
+        if result.get("status") == "completed":
+            print(f"✅ 横向对比完成 · {result['report_path']}")
+            sys.exit(0)
+        else:
+            print(f"⚠️  横向对比未生成 · {result}")
+            sys.exit(1)
+
+    # v3.6.0 · 组合批量分析 · 早返回
+    if args.portfolio:
+        from lib.portfolio_runner import run_portfolio
+        result = run_portfolio(
+            args.portfolio,
+            depth=args.depth or "lite",
+            auto_open=not args.no_browser,
+        )
+        if result.get("status") == "completed":
+            print(f"✅ 组合分析完成 · {result['report_path']}")
+            sys.exit(0)
+        else:
+            print(f"⚠️  组合分析失败 · {result}")
+            sys.exit(1)
 
     env = detect_environment()
 
