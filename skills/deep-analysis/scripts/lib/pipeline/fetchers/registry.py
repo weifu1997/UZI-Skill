@@ -266,6 +266,24 @@ FETCHER_REGISTRY: dict[str, type] = {
         optional=["xueqiu_cubes", "tgb_mentions", "ths_simu", "dpswang", "summary"],
         args_fn=lambda t, r: (t,),
     ),
+
+    # 20_trap_signals · 杀猪盘检测
+    "20_trap_signals": _make_adapter(
+        dim_key="20_trap_signals",
+        legacy_module="fetch_trap_signals",
+        required=[],
+        optional=["alert_level", "signals", "score", "risk_tags"],
+        args_fn=lambda t, r: (t,),
+    ),
+
+    # 21_similar_stocks · 相似股票推荐 (v4.0.0 最后迁移)
+    "21_similar_stocks": _make_adapter(
+        dim_key="21_similar_stocks",
+        legacy_module="fetch_similar_stocks",
+        required=[],
+        optional=["similar_stocks", "industry", "peers_attempted"],
+        args_fn=lambda t, r: (t,),
+    ),
 }
 
 
