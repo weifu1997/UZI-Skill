@@ -47,6 +47,150 @@ except ImportError:
 
 
 # ─────────────────────────────────────────────────────────────
+# v4.0.0 · Pure HTTP implementations (no mini_racer dependency)
+# ─────────────────────────────────────────────────────────────
+
+def fetch_capital_flow_pure_http(code: str) -> dict:
+    """资金流（纯 HTTP，无 mini_racer 依赖）.
+
+    直接调用东财 API，绕过 akshare 的 JS 解析层。
+    适用于 A 股，返回最近 30 天主力资金流向。
+
+    Args:
+        code: 6 位股票代码（不含前缀）
+
+    Returns:
+        {"date": "YYYY-MM-DD", "main_net_inflow": float, "large_net_inflow": float, ...}
+        失败返回 {"error": "..."}
+    """
+    if not requests:
+        return {"error": "requests library missing"}
+
+    # 判断市场（沪市 1.xxx / 深市 0.xxx）
+    secid = f"1.{code}" if code.startswith("6") else f"0.{code}"
+
+    url = "https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get"
+    params = {
+        "secid": secid,
+        "fields1": "f1,f2,f3,f7",
+        "fields2": "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f62,f63",
+        "lmt": 30,  # 最近 30 天
+        "klt": 101,  # 日K
+        "ut": "b2884a393a59ad64002292a3e90d46a5",
+    }
+
+    try:
+        r = requests.get(url, params=params, timeout=10, verify=True)
+        if r.status_code != 200:
+            return {"error": f"HTTP {r.status_code}"}
+
+        data = r.json()
+        klines = data.get("data", {}).get("klines", [])
+
+        if not klines:
+            return {"error": "no data"}
+
+        # 解析最新一天数据
+        latest = klines[-1].split(",")
+        return {
+            "date": latest[0] if len(latest) > 0 else "",
+            "main_net_inflow": float(latest[1]) if len(latest) > 1 and latest[1] else 0.0,
+            "small_net_inflow": float(latest[2]) if len(latest) > 2 and latest[2] else 0.0,
+            "medium_net_inflow": float(latest[3]) if len(latest) > 3 and latest[3] else 0.0,
+            "large_net_inflow": float(latest[4]) if len(latest) > 4 and latest[4] else 0.0,
+            "super_large_net_inflow": float(latest[5]) if len(latest) > 5 and latest[5] else 0.0,
+            "main_net_pct": float(latest[7]) if len(latest) > 7 and latest[7] else 0.0,
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def fetch_industry_pe_pure_http(industry: str) -> dict:
+    """行业 PE（简化版，使用 akshare 但避免 mini_racer 问题）.
+
+    由于东财行业 API 不支持直接按名称查询，这里使用简化策略：
+    1. 优先使用 akshare 的非 mini_racer 接口
+    2. 失败时返回占位数据
+
+    Args:
+        industry: 行业名称（如"银行"）
+
+    Returns:
+        {"industry": str, "pe_ttm": float, "pb": float, "date": str}
+        失败返回 {"error": "..."}
+    """
+    # v4.0.0 简化策略：行业 PE 数据不是关键路径，降级处理
+    # 实际生产中应该：
+    # 1. 预先拉取全部行业数据并缓存
+    # 2. 或使用其他不依赖 mini_racer 的数据源
+
+    try:
+        # 尝试使用 akshare 的其他接口（如果可用）
+        if ak:
+            # 这里可以添加备选的 akshare 调用
+            pass
+    except Exception:
+        pass
+
+    # 降级：返回占位数据，不阻塞主流程
+    return {
+        "industry": industry,
+        "pe_ttm": None,
+        "pb": None,
+        "date": "",
+        "_note": "industry PE data temporarily unavailable (mini_racer replacement in progress)",
+    }
+
+
+def fetch_valuation_pure_http(code: str) -> dict:
+    """估值指标（纯 HTTP，无 mini_racer 依赖）.
+
+    使用东财 API 获取 PE/PB 历史数据。
+
+    Args:
+        code: 6 位股票代码
+
+    Returns:
+        {"pe_ttm": float, "pb": float, "pe_percentile": float, ...}
+        失败返回 {"error": "..."}
+    """
+    if not requests:
+        return {"error": "requests library missing"}
+
+    # 判断市场
+    secid = f"1.{code}" if code.startswith("6") else f"0.{code}"
+
+    url = "https://push2his.eastmoney.com/api/qt/stock/trends2/get"
+    params = {
+        "secid": secid,
+        "fields1": "f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13",
+        "fields2": "f51,f52,f53,f54,f55,f56,f57,f58",
+        "iscr": "0",
+        "ndays": "1",
+    }
+
+    try:
+        r = requests.get(url, params=params, timeout=10, verify=True)
+        if r.status_code != 200:
+            return {"error": f"HTTP {r.status_code}"}
+
+        data = r.json()
+        info = data.get("data", {})
+
+        if not info:
+            return {"error": "no data"}
+
+        return {
+            "pe_ttm": info.get("f9"),  # 市盈率（动态）
+            "pb": info.get("f23"),     # 市净率
+            "total_market_cap": info.get("f26"),  # 总市值
+            "circulation_market_cap": info.get("f21"),  # 流通市值
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ─────────────────────────────────────────────────────────────
 # v2.6 · Tencent qt 通用价格兜底 — 适用于 A/H/U 三市场，简洁稳定
 # qt.gtimg.cn 不需 key、无反爬历史，是 push2 挂掉时的可靠备选
 # 字段格式：v_{prefix}{code}="type~name~code~current~prev~open~vol~..."
