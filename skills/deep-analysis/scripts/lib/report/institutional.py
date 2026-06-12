@@ -607,6 +607,15 @@ def _render_school_lock_banner(syn: dict | None) -> str:
     }
     fg, bg, icon, members_hint = THEMES.get(group, ("#374151", "rgba(107,114,128,0.10)", "🎯", ""))
 
+    # 预先构建 members 部分，避免在 f-string 表达式中使用反斜杠
+    if members_hint:
+        members_div = (
+            '<div style="margin-top:4px;color:#6b7280;font-size:11px">'
+            f'代表评委 · {members_hint}</div>'
+        )
+    else:
+        members_div = ""
+
     return (
         f'<div class="school-lock-banner" style="margin:16px 0;padding:14px 20px;'
         f'background:{bg};border-left:5px solid {fg};border-radius:8px;'
@@ -620,7 +629,7 @@ def _render_school_lock_banner(syn: dict | None) -> str:
         f'      本次分析仅由 <strong style="color:{fg}">{group} · {label}</strong> 的评委参与评分 · '
         f'其他流派的评委已 skip · 报告里"评委打分板 / 流派分数 / 多空辩论"均限于该派内.'
         f'    </div>'
-        f'    {("<div style=\"margin-top:4px;color:#6b7280;font-size:11px\">代表评委 · " + members_hint + "</div>") if members_hint else ""}'
+        f'    {members_div}'
         f'  </div>'
         f'</div>'
     )
