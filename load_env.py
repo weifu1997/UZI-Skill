@@ -1,86 +1,121 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-加载 .env 文件中的环境变量
+Load environment variables from .env file
 
-使用方法:
-1. 创建 .env 文件，填入配置
-2. 在 Python 脚本开头导入: from load_env import load_env
-3. 调用: load_env()
+Usage:
+1. Create .env file with your configuration
+2. Import: from load_env import load_env
+3. Call: load_env()
 """
 import os
 from pathlib import Path
 
 
 def load_env(env_file: str = ".env") -> bool:
-    """从 .env 文件加载环境变量
+    """Load environment variables from .env file
 
     Args:
-        env_file: .env 文件路径，默认为项目根目录的 .env
+        env_file: Path to .env file, defaults to .env in project root
 
     Returns:
-        bool: 是否成功加载
+        bool: True if successfully loaded
     """
-    # 查找 .env 文件
+    # Find .env file
     env_path = Path(env_file)
 
     if not env_path.exists():
-        # 尝试在项目根目录查找
+        # Try project root
         project_root = Path(__file__).parent
         env_path = project_root / ".env"
 
     if not env_path.exists():
-        print(f"⚠️  .env 文件未找到: {env_path}")
-        print(f"   创建 .env 文件或使用环境变量配置")
+        print(f"Warning: .env file not found: {env_path}")
+        print(f"   Create .env file or use environment variables")
         return False
 
-    # 读取并解析 .env 文件
+    # Read and parse .env file
     loaded_count = 0
-    with open(env_path, 'r', encoding='utf-8') as f:
-        for line_num, line in enumerate(f, 1):
-            line = line.strip()
 
-            # 跳过空行和注释
-            if not line or line.startswith('#'):
-                continue
+    # P1-1 Fix: Multi-encoding support
+    encodings = ['utf-8', 'gbk', 'gb2312', 'latin-1']
+    content = None
 
-            # 解析 KEY=VALUE
-            if '=' not in line:
-                continue
+    for encoding in encodings:
+        try:
+            with open(env_path, 'r', encoding=encoding) as f:
+                content = f.readlines()
+                if encoding != 'utf-8':
+                    print(f"Warning: .env file uses {encoding} encoding (UTF-8 recommended)")
+                break
+        except (UnicodeDecodeError, LookupError):
+            continue
+        except (PermissionError, OSError, IOError) as e:
+            # P1-3 Fix: I/O error handling
+            print(f"Error: Cannot read .env file: {e}")
+            print(f"   Please check file permissions")
+            return False
 
-            key, value = line.split('=', 1)
-            key = key.strip()
-            value = value.strip()
+    if content is None:
+        print(f"Error: Cannot decode .env file encoding")
+        return False
 
-            # 移除引号
-            if value.startswith('"') and value.endswith('"'):
-                value = value[1:-1]
-            elif value.startswith("'") and value.endswith("'"):
-                value = value[1:-1]
+    for line_num, line in enumerate(content, 1):
+        line = line.strip()
 
-            # 设置环境变量（不覆盖已存在的）
-            if key and not os.environ.get(key):
-                os.environ[key] = value
-                loaded_count += 1
+        # Skip empty lines and comments
+        if not line or line.startswith('#'):
+            continue
 
-    print(f"✅ 已从 .env 加载 {loaded_count} 个环境变量")
+        # Parse KEY=VALUE
+        if '=' not in line:
+            continue
+
+        key, value = line.split('=', 1)
+        key = key.strip()
+        value = value.strip()
+
+        # P1-2 Fix: Handle inline comments (only for unquoted values)
+        if '#' in value and not (value.startswith('"') or value.startswith("'")):
+            value = value.split('#')[0].strip()
+
+        # P1-4 Fix: Improved quote handling
+        if len(value) >= 2:
+            if (value.startswith('"') and value.endswith('"')) or \
+               (value.startswith("'") and value.endswith("'")):
+                # Check quote pairing
+                if value[0] == value[-1]:
+                    value = value[1:-1]
+                    # Handle escape characters
+                    value = value.replace('\\"', '"').replace("\\'", "'")
+                else:
+                    # Mismatched quotes warning
+                    print(f"Warning: Line {line_num} has mismatched quotes: {line}")
+
+        # Set environment variable (don't override existing)
+        if key and not os.environ.get(key):
+            os.environ[key] = value
+            loaded_count += 1
+
+    print(f"OK: Loaded {loaded_count} environment variables from .env")
     return True
 
 
 if __name__ == "__main__":
-    # 测试
+    # Test
     load_env()
 
-    # 显示关键配置
-    print("\n配置检查:")
+    # Show key configuration
+    print("\nConfiguration check:")
 
     url = os.environ.get('TUSHARE_HTTP_URL')
     if url:
-        print(f"  ✅ TUSHARE_HTTP_URL = {url}")
+        print(f"  OK: TUSHARE_HTTP_URL = {url}")
     else:
-        print(f"  ❌ TUSHARE_HTTP_URL 未配置")
+        print(f"  Not configured: TUSHARE_HTTP_URL")
 
     token = os.environ.get('TUSHARE_HTTP_TOKEN')
     if token:
-        print(f"  ✅ TUSHARE_HTTP_TOKEN = {'*' * min(len(token), 10)}")
+        print(f"  OK: TUSHARE_HTTP_TOKEN = {'*' * min(len(token), 10)}")
     else:
-        print(f"  ⏸️  TUSHARE_HTTP_TOKEN 未配置（可选）")
+        print(f"  Optional: TUSHARE_HTTP_TOKEN not configured")

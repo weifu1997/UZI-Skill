@@ -236,15 +236,26 @@ class _TushareHttpProvider:
                             for col in ("open", "high", "low", "close", "pre_close"):
                                 if col in row and row[col]:
                                     row[col] = float(row[col]) * ratio
-                except:
-                    pass  # 复权失败，返回未复权数据
+                except (KeyError, ValueError, TypeError, AttributeError) as e:
+                    # 复权失败，返回未复权数据
+                    pass
 
             # 转换为标准格式
             result = []
             for row in sorted(df_data, key=lambda x: x.get("trade_date", "")):
                 trade_date = str(row.get("trade_date", ""))
+
+                # 验证日期格式（必须是8位数字 YYYYMMDD）
+                if len(trade_date) == 8 and trade_date.isdigit():
+                    formatted_date = f"{trade_date[:4]}-{trade_date[4:6]}-{trade_date[6:8]}"
+                else:
+                    # 日期格式错误，使用默认值
+                    formatted_date = "1970-01-01"
+                    import logging
+                    logging.warning(f"Invalid trade_date format: {trade_date}, using default")
+
                 result.append({
-                    "日期": f"{trade_date[:4]}-{trade_date[4:6]}-{trade_date[6:8]}",
+                    "日期": formatted_date,
                     "开盘": float(row.get("open", 0) or 0),
                     "收盘": float(row.get("close", 0) or 0),
                     "最高": float(row.get("high", 0) or 0),
