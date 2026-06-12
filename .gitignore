@@ -52,3 +52,6 @@ docs/*.local.md
 
 # v2.10.2 · prewarm_cache 生成的预热数据（release 附件，不进 repo）
 skills/deep-analysis/scripts/prewarm/
+
+# Archive (阶段性报告归档，不提交到远程)
+/archive/
