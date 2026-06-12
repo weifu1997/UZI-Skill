@@ -45,13 +45,23 @@ def _post(url: str, body: dict, api_key: str, timeout: int = 30, attempts: int =
     """POST with small retry. Returns parsed JSON or {'error': ...}."""
     if requests is None:
         return {"error": "requests library missing"}
+
+    # v4.0.0 - Import security module for credential masking
+    try:
+        from .security import mask_secret
+    except ImportError:
+        # Fallback if security module not available
+        def mask_secret(text):
+            return text
+
     headers = {"Content-Type": "application/json", "apikey": api_key}
     last_err = None
     for i in range(attempts):
         try:
             r = requests.post(url, headers=headers, json=body, timeout=timeout)
             if r.status_code != 200:
-                last_err = f"HTTP {r.status_code}: {r.text[:200]}"
+                # Mask secrets in error messages
+                last_err = mask_secret(f"HTTP {r.status_code}: {r.text[:200]}")
                 # 401/403: don't retry, key issue
                 if r.status_code in (401, 403):
                     break
@@ -59,7 +69,8 @@ def _post(url: str, body: dict, api_key: str, timeout: int = 30, attempts: int =
                 continue
             return r.json()
         except Exception as e:
-            last_err = f"{type(e).__name__}: {str(e)[:200]}"
+            # Mask secrets in exception messages
+            last_err = mask_secret(f"{type(e).__name__}: {str(e)[:200]}")
             time.sleep(1.0 * (i + 1))
     return {"error": last_err or "unknown"}
 

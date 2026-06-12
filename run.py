@@ -303,6 +303,27 @@ def main():
                         help="v2.11.0 · SaaS 集成：把产出（standalone html + 图 + 摘要）拷贝到该目录，并在其中生成 index.html / report.meta.json。建议配合 --no-browser 使用。")
     args = parser.parse_args()
 
+    # v4.0.0 · 安全检查和输入验证
+    try:
+        sys.path.insert(0, str(SCRIPTS_DIR))
+        from lib.security import check_env_security, TickerValidator
+
+        # 启动安全检查
+        issues = check_env_security()
+        if issues:
+            for issue in issues:
+                print(issue, file=sys.stderr)
+
+        # Ticker 输入验证
+        is_valid, result = TickerValidator.validate(args.ticker)
+        if not is_valid:
+            print(f"❌ 输入验证失败: {result}", file=sys.stderr)
+            sys.exit(2)
+        args.ticker = result  # 使用清理后的值
+    except Exception as e:
+        # 安全检查失败不阻塞主流程，但记录警告
+        print(f"⚠️  安全检查遇到问题（继续执行）: {e}", file=sys.stderr)
+
     # v2.10.5 · run.py 是 CLI 直跑入口（agent 流程走 stage1/stage2 直接调用，不经 run.py）。
     # 设 UZI_CLI_ONLY=1 让 self_review 对 agent_analysis.json 缺失 / 低 coverage 做宽容处理
     # （降级为 warning，仍出报告）。

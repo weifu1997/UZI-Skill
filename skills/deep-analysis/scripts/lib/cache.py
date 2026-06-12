@@ -16,8 +16,22 @@ import hashlib
 import json
 import os
 import time
+import threading
 from pathlib import Path
 from typing import Any, Callable
+
+# Thread-safe cache locks (v4.0.0)
+_CACHE_LOCKS: dict[str, threading.Lock] = {}
+_CACHE_LOCKS_LOCK = threading.Lock()
+
+
+def _get_lock(key: str) -> threading.Lock:
+    """Get or create lock for cache key."""
+    with _CACHE_LOCKS_LOCK:
+        if key not in _CACHE_LOCKS:
+            _CACHE_LOCKS[key] = threading.Lock()
+        return _CACHE_LOCKS[key]
+
 
 # Tiered TTL constants (seconds)
 TTL_REALTIME    = 60          # 1 minute — price snapshot
@@ -42,11 +56,14 @@ def _cache_path(ticker: str, key: str) -> Path:
 
 def cached(ticker: str, key: str, fetch_fn: Callable[[], Any], ttl: int = CACHE_TTL_SECONDS) -> Any:
     """Return cached value if fresh, else call fetch_fn and store.
+    Thread-safe with double-check locking pattern (v4.0.0).
     Set STOCK_NO_CACHE=1 in the environment to force refresh.
     """
     path = _cache_path(ticker, key)
     now = time.time()
+    cache_key = str(path)
 
+    # First check without lock (fast path)
     if not NO_CACHE and path.exists():
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
@@ -55,12 +72,28 @@ def cached(ticker: str, key: str, fetch_fn: Callable[[], Any], ttl: int = CACHE_
         except (json.JSONDecodeError, KeyError):
             pass
 
-    data = fetch_fn()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps({"_cached_at": now, "data": data, "_ttl": ttl}, ensure_ascii=False, default=str),
-        encoding="utf-8",
-    )
+    # Acquire lock for fetch and write
+    lock = _get_lock(cache_key)
+    with lock:
+        # Double-check pattern: check again after acquiring lock
+        if not NO_CACHE and path.exists():
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+                if now - payload.get("_cached_at", 0) < ttl:
+                    return payload["data"]
+            except (json.JSONDecodeError, KeyError):
+                pass
+
+        # Actually fetch data
+        data = fetch_fn()
+
+        # Write to cache
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            json.dumps({"_cached_at": now, "data": data, "_ttl": ttl}, ensure_ascii=False, default=str),
+            encoding="utf-8",
+        )
+
     return data
 
 
