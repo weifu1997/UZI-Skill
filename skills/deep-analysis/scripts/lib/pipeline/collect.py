@@ -1,6 +1,6 @@
 """pipeline.collect · wave-based 数据采集编排器.
 
-v3.0.0 Phase 7+ · 性能跟 legacy collect_raw_data 完全对齐.
+v4.0.0 · Pipeline 默认启用 · 性能跟 legacy collect_raw_data 完全对齐.
 
 设计：
 - wave 1: 0_basic 先跑（后续 fetcher 依赖 industry）
@@ -13,7 +13,7 @@ v3.0.0 Phase 7+ · 性能跟 legacy collect_raw_data 完全对齐.
 - pipeline-extra 元信息放 `_pipeline` 命名空间 · 下游读不到就忽略
 - 性能：并发 + 锁 · 跟 legacy 对齐（cold ~5min · warm ~15s）
 
-feature flag：UZI_PIPELINE=1 时 stage1 走新管道 · 否则走老 collect_raw_data
+v4.0.0 变更：Pipeline 默认启用 · 设 UZI_LEGACY=1 回退老路径
 """
 from __future__ import annotations
 
@@ -37,8 +37,22 @@ _MINI_RACER_LOCK = threading.Lock()
 
 
 def is_pipeline_enabled() -> bool:
-    """feature flag · 默认关 · 只在 UZI_PIPELINE=1 时启用新管道."""
-    return os.environ.get("UZI_PIPELINE") == "1"
+    """v4.0.0 · Pipeline 默认启用 · 设 UZI_LEGACY=1 回退到老路径.
+
+    变更历史:
+    - v3.0.0: feature flag UZI_PIPELINE=1 opt-in
+    - v4.0.0: 默认启用 · UZI_LEGACY=1 opt-out
+    """
+    # 显式禁用：UZI_LEGACY=1
+    if os.environ.get("UZI_LEGACY") == "1":
+        return False
+
+    # 显式启用：UZI_PIPELINE=1（兼容旧配置）
+    if os.environ.get("UZI_PIPELINE") == "1":
+        return True
+
+    # v4.0.0 默认：启用 pipeline
+    return True
 
 
 def collect(ticker: Any, raw_previous: dict | None = None, max_workers: int = 6) -> dict[str, dict]:
