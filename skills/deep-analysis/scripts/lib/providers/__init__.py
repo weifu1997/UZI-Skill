@@ -22,15 +22,18 @@ for p in chain:
 
 ## 内置 providers（v2.10.3）
 
-  · akshare    (主 · 0 key · 默认)
-  · efinance   (冗余 · 0 key · 需 pip install efinance)
-  · tushare    (opt-in · 需 TUSHARE_TOKEN)
-  · baostock   (低层 · 0 key · 已装)
+  · akshare       (主 · 0 key · 默认)
+  · efinance      (冗余 · 0 key · 需 pip install efinance)
+  · tushare_http  (opt-in · 需 TUSHARE_HTTP_URL · v4.0.0 新增)
+  · tushare       (opt-in · 需 TUSHARE_TOKEN)
+  · baostock      (低层 · 0 key · 已装)
 
 ## 环境变量
 
-  TUSHARE_TOKEN     · Tushare Pro token
-  UZI_PROVIDERS_<DIM>  · 单维度覆盖偏好，如 UZI_PROVIDERS_FINANCIALS=tushare,akshare
+  TUSHARE_TOKEN        · Tushare Pro token
+  TUSHARE_HTTP_URL     · Tushare HTTP 代理地址 (v4.0.0)
+  TUSHARE_HTTP_TOKEN   · Tushare HTTP 代理 token (可选)
+  UZI_PROVIDERS_<DIM>  · 单维度覆盖偏好，如 UZI_PROVIDERS_FINANCIALS=tushare_http,akshare
 """
 from __future__ import annotations
 
@@ -84,9 +87,9 @@ def get_provider_chain(dim: str, market: str = "A") -> list[Provider]:
     """返回一个给定维度+市场的 provider 优先级链.
 
     优先级 = UZI_PROVIDERS_<DIM> env （逗号分隔 id）> 内置默认顺序
-    默认顺序：akshare → efinance → tushare → baostock
+    默认顺序：akshare → efinance → tushare_http → tushare → baostock
     """
-    default_order = ["akshare", "efinance", "tushare", "baostock"]
+    default_order = ["akshare", "efinance", "tushare_http", "tushare", "baostock"]
     env_key = f"UZI_PROVIDERS_{dim.upper()}"
     env_val = os.environ.get(env_key)
     if env_val:
@@ -183,6 +186,10 @@ def _auto_register():
         pass
     try:
         from . import tushare_provider  # noqa
+    except Exception:
+        pass
+    try:
+        from . import tushare_http_provider  # noqa  v4.0.0: 支持第三方 HTTP 代理
     except Exception:
         pass
     try:
