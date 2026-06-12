@@ -620,7 +620,7 @@ def _render_school_lock_banner(syn: dict | None) -> str:
         f'      本次分析仅由 <strong style="color:{fg}">{group} · {label}</strong> 的评委参与评分 · '
         f'其他流派的评委已 skip · 报告里"评委打分板 / 流派分数 / 多空辩论"均限于该派内.'
         f'    </div>'
-        f'    {f"<div style=\"margin-top:4px;color:#6b7280;font-size:11px\">代表评委 · {members_hint}</div>" if members_hint else ""}'
+        f'    {("<div style=\"margin-top:4px;color:#6b7280;font-size:11px\">代表评委 · " + members_hint + "</div>") if members_hint else ""}'
         f'  </div>'
         f'</div>'
     )
